@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edge-AIoT Biochar</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #657084; --line: #e2e6ec;
+    --accent: #2f7d4f; --accent-soft: #e5f3ea; --bad: #c0392b; --bad-soft: #fbe7e5; --warn: #b7791f;
+    --c1: #8a94a6; --c2: #3b82c4; --c3: #2f9e5b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #12151b; --panel: #1b2029; --text: #e6e9ef; --muted: #98a2b3; --line: #2b323e;
+            --accent: #5cc184; --accent-soft: #1f3a2a; --bad: #ef6b5d; --bad-soft: #3d2220; --warn: #e0a940;
+            --c1: #9aa3b2; --c2: #64a9e8; --c3: #5cc184; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  header { padding: 16px 24px 0; background: var(--panel); border-bottom: 1px solid var(--line); }
+  h1 { font-size: 18px; margin: 0 0 2px; }
+  header p { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+  nav { display: flex; gap: 2px; overflow-x: auto; }
+  nav button { border: 0; background: none; color: var(--muted); padding: 10px 12px; font: inherit; cursor: pointer;
+               border-bottom: 2px solid transparent; white-space: nowrap; }
+  nav button.on { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+  main { padding: 20px 24px 40px; max-width: 1400px; }
+  h2 { font-size: 15px; margin: 24px 0 8px; }
+  h2:first-child { margin-top: 0; }
+  .note { color: var(--muted); font-size: 13px; margin: -4px 0 10px; }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .card .lbl { color: var(--muted); font-size: 12px; }
+  .card .val { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .card .tgt { font-size: 12px; color: var(--muted); }
+  .pass { color: var(--accent); } .fail { color: var(--bad); }
+  .wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--panel); }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: 0; }
+  .tag { display: inline-block; padding: 0 6px; border-radius: 4px; font-size: 12px; }
+  .tag.ok { background: var(--accent-soft); color: var(--accent); } .tag.no { background: var(--bad-soft); color: var(--bad); }
+  .charts { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
+  .chart { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; height: 280px; }
+  .chart h3 { margin: 0 0 6px; font-size: 13px; color: var(--muted); font-weight: 600; }
+  .chart canvas { max-height: 235px; }
+  .side { display: grid; grid-template-columns: 260px 1fr; gap: 12px; }
+  .list { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; max-height: 70vh; overflow: auto; }
+  .list div { padding: 5px 10px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--line); }
+  .list div:hover, .list div.on { background: var(--accent-soft); }
+  .list small { color: var(--muted); float: right; }
+  textarea { width: 100%; min-height: 140px; font: 13px/1.4 Consolas, monospace; padding: 10px; border-radius: 8px;
+             border: 1px solid var(--line); background: var(--panel); color: var(--text); }
+  .btn { margin: 8px 0 12px; padding: 7px 14px; border: 0; border-radius: 6px; background: var(--accent); color: #fff;
+         font: inherit; cursor: pointer; }
+  .err { color: var(--bad); white-space: pre-wrap; }
+  #loading { padding: 60px 24px; text-align: center; color: var(--muted); }
+  @media (max-width: 720px) { main { padding: 16px; } .side { grid-template-columns: 1fr; }
+                              .charts { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Edge-AIoT giám sát sức khỏe đất – Biochar</h1>
+  <p>Trình xem database (dữ liệu demo giả lập: 1 Gateway, 3 Sensor Node, 3 nghiệm thức, 45 ngày)</p>
+  <nav id="nav"></nav>
+</header>
+<main id="main"><div id="loading">Đang khởi tạo database…</div></main>
+
+<script>
+const TABS = [
+  ['overview', 'Tổng quan'], ['monitor', 'Monitoring'], ['sqi', 'Sức khỏe đất – SQI'],
+  ['exp', 'Thí nghiệm & Biochar'], ['lab', 'Lab & Hiệu chuẩn'], ['dq', 'Data Quality'],
+  ['dataset', 'Dataset'], ['ml', 'Embedded ML'], ['ota', 'OTA'], ['alert', 'Cảnh báo'],
+  ['econ', 'Kinh tế'], ['tables', 'Bảng dữ liệu'], ['sql', 'SQL']
+];
+const $ = s => document.querySelector(s);
+const main = $('#main');
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let charts = [];
+
+const api = async (u, opt) => {
+  const r = await fetch(u, opt);
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error);
+  return j;
+};
+const q = name => api('/api/q?name=' + name);
+
+const isNum = v => typeof v === 'number' || (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v));
+const fmt = v => {
+  if (v === null || v === undefined) return '<span style="color:var(--muted)">–</span>';
+  if (v === true) return '<span class="tag ok">đạt</span>';
+  if (v === false) return '<span class="tag no">không</span>';
+  if (v instanceof Object) return JSON.stringify(v);
+  if (isNum(v) && Math.abs(+v) >= 100000) return (+v).toLocaleString('vi-VN');
+  return String(v).replace(/</g, '&lt;');
+};
+const table = d => `<div class="wrap"><table><thead><tr>${d.fields.map(f => `<th>${f}</th>`).join('')}</tr></thead>
+  <tbody>${d.rows.map(r => `<tr>${d.fields.map(f => `<td class="${isNum(r[f]) ? 'num' : ''}">${fmt(r[f])}</td>`).join('')}</tr>`).join('')}
+  </tbody></table></div>`;
+const section = (title, body, note = '') => `<h2>${title}</h2>${note ? `<p class="note">${note}</p>` : ''}${body}`;
+
+function lineChart(id, title, labels, series, opts = {}) {
+  return { id, title, render: el => new Chart(el, {
+    type: opts.type || 'line',
+    data: { labels, datasets: series.map((s, i) => ({
+      label: s.label, data: s.data, borderColor: css(['--c1', '--c2', '--c3'][i % 3]),
+      backgroundColor: css(['--c1', '--c2', '--c3'][i % 3]), pointRadius: 0, borderWidth: 2, tension: .25 })) },
+    options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { color: css('--muted'), boxWidth: 12 } } },
+      scales: { x: { ticks: { color: css('--muted'), maxTicksLimit: 8 }, grid: { display: false } },
+                y: { ticks: { color: css('--muted') }, grid: { color: css('--line') }, ...(opts.y || {}) } } } }) };
+}
+function chartsHtml(list) {
+  return `<div class="charts">${list.map(c => `<div class="chart"><h3>${c.title}</h3><canvas id="${c.id}"></canvas></div>`).join('')}</div>`;
+}
+function drawCharts(list) { list.forEach(c => charts.push(c.render(document.getElementById(c.id)))); }
+const byGroup = (rows, groupKey, xKey, yKey) => {
+  const labels = [...new Set(rows.map(r => r[xKey]))];
+  const groups = [...new Set(rows.map(r => r[groupKey]))];
+  return { labels, series: groups.map(g => ({ label: g,
+    data: labels.map(x => { const r = rows.find(r => r[groupKey] === g && r[xKey] === x); return r ? +r[yKey] : null; }) })) };
+};
+
+const VIEWS = {
+  async overview() {
+    const [acc, plots, c] = await Promise.all([q('acceptance'), q('plots'), q('counts')]);
+    const k = c.rows[0];
+    const cards = [['Bản tin cảm biến', k.readings], ['Bản tin hợp lệ', k.valid], ['Sensor Node', k.nodes],
+                   ['Gateway', k.gateways], ['Cảnh báo đang mở', k.open_alerts], ['Kết quả lab', k.lab_results]]
+      .map(([l, v]) => `<div class="card"><div class="lbl">${l}</div><div class="val">${(+v).toLocaleString('vi-VN')}</div></div>`).join('');
+    const kpis = acc.rows.map(r => `<div class="card"><div class="lbl">${r.name_vi}</div>
+      <div class="val ${r.passed ? 'pass' : 'fail'}">${r.current_value ?? '–'} <small style="font-size:13px">${r.unit}</small></div>
+      <div class="tgt">Yêu cầu ${r.comparator === 'GTE' ? '≥' : '≤'} ${r.target_value} · ${r.passed ? 'Đạt' : 'Chưa đạt'}</div></div>`).join('');
+    return section('Hệ thống', `<div class="grid">${cards}</div>`) +
+      section('Tiêu chí nghiệm thu', `<div class="grid">${kpis}</div>`, 'Ngưỡng giữ nguyên theo hồ sơ nhiệm vụ.') +
+      section('Các ô thí nghiệm', table(plots), 'Giá trị cảm biến hợp lệ mới nhất và SQI gần nhất của từng ô.');
+  },
+  async monitor() {
+    const [m, last] = await Promise.all([q('monitoring'), q('latestReadings')]);
+    const list = [['ph', 'pH'], ['moisture', 'Độ ẩm đất (%)'], ['ec', 'EC (dS/m)'], ['n', 'N (mg/kg)'], ['p', 'P (mg/kg)'], ['k', 'K (mg/kg)']]
+      .map(([key, t]) => { const g = byGroup(m.rows, 'plot_code', 'day', key); return lineChart('m_' + key, t + ' – trung bình ngày', g.labels, g.series); });
+    return { html: section('Biểu đồ theo ngày', chartsHtml(list), 'P01 = đối chứng, P02 = biochar, P03 = biochar làm giàu.') +
+      section('60 bản tin mới nhất', table(last), 'Gồm cả bản tin bị QC đánh dấu SUSPECT/INVALID.'), charts: list };
+  },
+  async sqi() {
+    const [d, c, ind] = await Promise.all([q('sqiDaily'), q('sqiCompare'), q('sqiIndicators')]);
+    const g = byGroup(d.rows, 'treatment_code', 'day', 'sqi_value');
+    const list = [lineChart('sqi_line', 'SQI theo ngày (0–1)', g.labels, g.series, { y: { min: 0, max: 1 } })];
+    return { html: section('Diễn biến SQI theo nghiệm thức', chartsHtml(list)) +
+      section('So sánh nghiệm thức', table(c)) +
+      section('Điểm từng chỉ tiêu (trung bình)', table(ind), 'score đã chuẩn hóa về 0–1, weight là trọng số trong SQI-v1.0.'), charts: list };
+  },
+  async exp() {
+    const [e, b] = await Promise.all([q('experiment'), q('biochar')]);
+    return section('Thí nghiệm & nghiệm thức', table(e)) + section('Lô biochar (phụ phẩm cây vải)', table(b));
+  },
+  async lab() {
+    const [cal, svl] = await Promise.all([q('calibration'), q('sensorVsLab')]);
+    return section('Kết quả hiệu chuẩn cảm biến', table(cal), 'giá trị đúng = slope × giá trị đọc + intercept') +
+      section('Đối chiếu cảm biến với phòng thí nghiệm', table(svl), 'Trung bình cảm biến trong ±2 giờ quanh thời điểm lấy mẫu.');
+  },
+  async dq() {
+    const [d, iss, rules] = await Promise.all([q('dqDaily'), q('dqIssues'), q('dqRules')]);
+    const labels = d.rows.map(r => r.day);
+    const list = [lineChart('dq', 'Bản tin theo ngày (3 node)', labels, [
+      { label: 'Kỳ vọng', data: d.rows.map(r => +r.expected) },
+      { label: 'Nhận được', data: d.rows.map(r => +r.received) },
+      { label: 'Hợp lệ', data: d.rows.map(r => +r.valid) }])];
+    return { html: section('Thu thập dữ liệu', chartsHtml(list)) + section('Lỗi dữ liệu theo loại', table(iss)) +
+      section('Luật QC', table(rules)), charts: list };
+  },
+  async dataset() {
+    const [d, l] = await Promise.all([q('dataset'), q('labels')]);
+    return section('Phiên bản dataset', table(d), 'leaking_groups = 0 nghĩa là không có nhóm nào nằm ở nhiều tập train/val/test.') +
+      section('Phân bố nhãn sức khỏe đất', table(l));
+  },
+  async ml() {
+    const [m, i] = await Promise.all([q('ml'), q('inference')]);
+    return section('Model & tiêu chí nghiệm thu', table(m)) + section('Suy luận gần nhất tại Edge Gateway', table(i));
+  },
+  async ota() {
+    const [k, d] = await Promise.all([q('ota'), q('otaDeploy')]);
+    return section('KPI OTA', table(k)) + section('Các đợt triển khai', table(d));
+  },
+  async alert() {
+    const [a, r] = await Promise.all([q('alerts'), q('alertRules')]);
+    return section('Cảnh báo & khuyến nghị', table(a)) + section('Luật cảnh báo', table(r));
+  },
+  async econ() {
+    const e = await q('economic');
+    const list = [lineChart('econ', 'Lợi nhuận (triệu VNĐ/ha)', e.rows.map(r => r.treatment_code),
+      [{ label: 'Lợi nhuận', data: e.rows.map(r => +r.profit_vnd_ha / 1e6) }], { type: 'bar' })];
+    return { html: section('Hiệu quả kinh tế (số liệu giả định)', table(e)) + chartsHtml(list), charts: list };
+  },
+  async tables() {
+    const t = await q('tables');
+    const items = t.rows.map(r => `<div data-s="${r.schema}" data-t="${r.table}">${r.schema}.${r.table}<small>${r.kind === 'view' ? 'view' : Math.max(r.approx_rows, 0)}</small></div>`).join('');
+    return { html: `<div class="side"><div class="list" id="tlist">${items}</div><div id="tview"><p class="note">Chọn một bảng bên trái để xem 200 dòng đầu.</p></div></div>`,
+      after() {
+        $('#tlist').onclick = async e => {
+          const el = e.target.closest('div[data-t]'); if (!el) return;
+          document.querySelectorAll('#tlist div').forEach(d => d.classList.toggle('on', d === el));
+          $('#tview').innerHTML = '<p class="note">Đang tải…</p>';
+          try { $('#tview').innerHTML = `<h2>${el.dataset.s}.${el.dataset.t}</h2>` +
+                table(await api(`/api/table?schema=${el.dataset.s}&table=${el.dataset.t}`)); }
+          catch (err) { $('#tview').innerHTML = `<p class="err">${err.message}</p>`; }
+        };
+      } };
+  },
+  async sql() {
+    return { html: `<p class="note">Câu lệnh chạy trong transaction rồi ROLLBACK, nên không làm thay đổi dữ liệu demo.</p>
+      <textarea id="sqltext">SELECT * FROM reporting.v_acceptance_summary;</textarea>
+      <button class="btn" id="run">Chạy (Ctrl+Enter)</button><div id="sqlout"></div>`,
+      after() {
+        const run = async () => {
+          $('#sqlout').innerHTML = '<p class="note">Đang chạy…</p>';
+          try { const d = await api('/api/sql', { method: 'POST', body: $('#sqltext').value });
+                $('#sqlout').innerHTML = `<p class="note">${d.rows.length} dòng</p>` + table(d); }
+          catch (e) { $('#sqlout').innerHTML = `<p class="err">${e.message}</p>`; }
+        };
+        $('#run').onclick = run;
+        $('#sqltext').onkeydown = e => { if (e.ctrlKey && e.key === 'Enter') run(); };
+      } };
+  }
+};
+
+async function show(tab) {
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  charts.forEach(c => c.destroy()); charts = [];
+  main.innerHTML = '<p class="note">Đang tải…</p>';
+  try {
+    const v = await VIEWS[tab]();
+    main.innerHTML = typeof v === 'string' ? v : v.html;
+    if (v.charts && window.Chart) drawCharts(v.charts);
+    if (v.after) v.after();
+  } catch (e) { main.innerHTML = `<p class="err">${e.message}</p>`; }
+  try { localStorage.setItem('tab', tab); } catch {}
+}
+
+async function boot() {
+  const s = await api('/api/status').catch(() => ({ ready: false, step: 'Không kết nối được server' }));
+  if (!s.ready) {
+    $('#loading').textContent = s.error ? 'Lỗi: ' + s.error : s.step + ' (lần đầu mất khoảng 1 phút)…';
+    return setTimeout(boot, 1500);
+  }
+  $('#nav').innerHTML = TABS.map(([k, l]) => `<button data-tab="${k}">${l}</button>`).join('');
+  $('#nav').onclick = e => { const b = e.target.closest('button'); if (b) show(b.dataset.tab); };
+  let saved = 'overview';
+  try { saved = localStorage.getItem('tab') || saved; } catch {}
+  show(VIEWS[saved] ? saved : 'overview');
+}
+boot();
+</script>
+</body>
+</html>

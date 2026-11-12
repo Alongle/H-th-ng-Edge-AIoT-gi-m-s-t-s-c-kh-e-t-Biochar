@@ -2,7 +2,28 @@
 
 Hiện thực PostgreSQL cho tài liệu *Database_Schema_EdgeAIoT_Biochar.docx*: 15 schema theo domain cộng thêm schema `ref` cho danh mục dùng chung. Bộ SQL gồm bảng, ràng buộc, index, partition, hàm xử lý (ingest → QC → dataset → SQI → nhãn → ML/OTA → cảnh báo → KPI), view cho 14 màn hình UI, audit và phân quyền.
 
-## Chạy
+## Xem nhanh (không cần cài PostgreSQL)
+
+Thư mục `viewer/` là trình xem chạy trên web. Database PostgreSQL chạy ngay trong Node.js nhờ PGlite. Chỉ cần cài Node.js ≥ 18.
+
+```bash
+cd viewer
+```
+```bash
+npm install
+```
+```bash
+npm start
+```
+
+Sau đó mở http://localhost:3000.
+
+- **Lần chạy đầu** mất khoảng 1 phút để tạo database và nạp dữ liệu demo. Các lần sau mở ngay.
+- **Nơi lưu dữ liệu:** `%LOCALAPPDATA%\edge_aiot_biochar_pgdata`. Chạy `npm run reset` để xóa và tạo lại từ đầu, cần làm mỗi khi sửa file SQL.
+- **Các tab:** Tổng quan (KPI nghiệm thu), Monitoring, SQI, Thí nghiệm & Biochar, Lab & Hiệu chuẩn, Data Quality, Dataset, Embedded ML, OTA, Cảnh báo, Kinh tế, Bảng dữ liệu (xem mọi bảng) và SQL.
+- **Tab SQL** chạy câu lệnh trong transaction rồi ROLLBACK, nên thử `UPDATE` hay `DELETE` cũng không làm hỏng dữ liệu.
+
+## Chạy trên PostgreSQL thật
 
 Yêu cầu PostgreSQL ≥ 14. TimescaleDB là tùy chọn.
 
@@ -40,6 +61,13 @@ Trên production, bỏ dòng `99_demo_seed.sql` trong `run_all.sql`. Nếu máy 
 | `17_db_roles.sql` | Role `<schema>_reader` / `<schema>_writer`, `edge_gateway`, `app_backend` |
 | `90_timescale_optional.sql` | Hypertable, nén dữ liệu, continuous aggregate theo giờ |
 | `99_demo_seed.sql` | Dữ liệu demo: 1 Gateway, 3 Node, 3 nghiệm thức, 45 ngày đo 15 phút/lần |
+
+Ngoài thư mục `sql/`:
+
+| Thư mục | Nội dung |
+|---|---|
+| `viewer/` | Trình xem web cho database (xem mục *Xem nhanh*) |
+| `ml/` | Embedded ML (TV6): notebook huấn luyện, mô hình, SQL ghi metrics thật. Xem [ml/README.md](ml/README.md) |
 
 ## Luồng dữ liệu
 

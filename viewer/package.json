@@ -1,0 +1,14 @@
+{
+  "name": "edge-aiot-biochar-viewer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Trình xem database Edge-AIoT Biochar (PostgreSQL chạy trong Node bằng PGlite)",
+  "scripts": {
+    "start": "node server.mjs",
+    "reset": "node server.mjs --reset"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.2.17"
+  }
+}
